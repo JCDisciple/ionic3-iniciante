@@ -1,0 +1,26 @@
+# Configuração do Supabase CLI (desenvolvimento local e `supabase link`).
+# O projeto de produção é configurado no painel; veja o README.
+project_id = "biblioteca"
+
+[api]
+schemas = ["public"]
+
+[db]
+major_version = 17
+
+[auth]
+site_url = "http://localhost:8081"
+additional_redirect_urls = [
+  "http://localhost:8081/auth/callback",
+  "biblioteca://auth/callback",
+  "exp://**",
+]
+
+[auth.email]
+enable_signup = true
+
+# Para testar o Google localmente, crie credenciais OAuth e habilite aqui.
+[auth.external.google]
+enabled = false
+client_id = "env(SUPABASE_AUTH_GOOGLE_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_GOOGLE_SECRET)"

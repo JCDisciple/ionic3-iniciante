@@ -1,0 +1,53 @@
+{
+  "expo": {
+    "name": "Biblioteca",
+    "slug": "biblioteca",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "biblioteca",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "app.biblioteca.leituras",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "app.biblioteca.leituras",
+      "adaptiveIcon": {
+        "backgroundColor": "#A84C25",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png",
+      "name": "Biblioteca e Leituras",
+      "shortName": "Biblioteca",
+      "lang": "pt-BR",
+      "themeColor": "#A84C25",
+      "backgroundColor": "#F7F3EC"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-web-browser",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#F7F3EC",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 120,
+          "dark": {
+            "backgroundColor": "#15130F",
+            "image": "./assets/images/splash-icon.png"
+          }
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}

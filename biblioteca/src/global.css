@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Paleta "papel e tinta" — valores RGB para permitir opacidade (bg-ink/10). */
+:root {
+  --color-paper: 247 243 236;
+  --color-surface: 255 253 248;
+  --color-sunken: 238 232 221;
+  --color-ink: 31 27 22;
+  --color-muted: 102 94 83;
+  --color-line: 226 218 204;
+  --color-accent: 168 76 37;
+  --color-on-accent: 255 253 248;
+  --color-danger: 176 42 42;
+  --color-success: 46 110 64;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-paper: 21 19 15;
+    --color-surface: 31 28 23;
+    --color-sunken: 40 36 30;
+    --color-ink: 242 236 226;
+    --color-muted: 173 164 150;
+    --color-line: 58 53 45;
+    --color-accent: 230 142 98;
+    --color-on-accent: 21 19 15;
+    --color-danger: 240 128 120;
+    --color-success: 126 196 146;
+  }
+}
