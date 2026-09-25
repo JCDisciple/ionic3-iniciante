@@ -3,15 +3,26 @@ import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 
 import { BookCover } from '@/components/book-cover';
+import { GoalCard } from '@/components/reading/goal-card';
+import { ProgressSheet, type ProgressTarget } from '@/components/reading/progress-sheet';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Chip } from '@/components/ui/chip';
 import { Icon } from '@/components/ui/icon';
+import { ProgressBar } from '@/components/ui/progress-bar';
 import { Screen } from '@/components/ui/screen';
 import { Body, Heading, Muted, Subheading, serif } from '@/components/ui/typography';
 import { pendingInvite } from '@/lib/invites';
 import { todayISO } from '@/lib/dates';
-import { useMyCurrentReadings, useOpenLoans, useRecentBooks } from '@/lib/queries';
+import { describe, fractionOf, latest } from '@/lib/progress';
+import {
+  useInvalidateLibrary,
+  useMyCurrentReadings,
+  useOpenLoans,
+  useRecentBooks,
+  type ReadingWithBook,
+} from '@/lib/queries';
 import { useCurrentLibrary } from '@/providers/library-provider';
 
 function greeting() {
@@ -28,6 +39,18 @@ export default function HomeScreen() {
   const loans = useOpenLoans();
   const lateLoans = (loans.data ?? []).filter((l) => l.due_at && l.due_at < todayISO()).length;
   const [inviteToken, setInviteToken] = useState<string | null>(null);
+  const [progressFor, setProgressFor] = useState<ProgressTarget | null>(null);
+  const invalidate = useInvalidateLibrary();
+
+  function openProgress(reading: ReadingWithBook) {
+    setProgressFor({
+      id: reading.id,
+      title: reading.book.title,
+      format: reading.copy?.format ?? null,
+      book: reading.book,
+      progress: reading.reading_progress,
+    });
+  }
 
   useEffect(() => {
     pendingInvite.get().then(setInviteToken);
@@ -68,25 +91,41 @@ export default function HomeScreen() {
         </Pressable>
       ) : null}
 
+      <GoalCard />
+
       <View className="gap-3">
         <Subheading>Lendo agora</Subheading>
         {readings.data && readings.data.length > 0 ? (
-          readings.data.map((reading) => (
-            <Pressable
-              key={reading.id}
-              accessibilityRole="button"
-              onPress={() => router.push(`/livro/${reading.book_id}`)}>
-              <Card className="flex-row gap-4">
-                <BookCover book={reading.book} width={56} />
-                <View className="flex-1 justify-center gap-1">
-                  <Body className="font-semibold" style={serif} numberOfLines={2}>
-                    {reading.book.title}
-                  </Body>
-                  <Muted numberOfLines={1}>{reading.book.authors.join(', ')}</Muted>
+          readings.data.map((reading) => {
+            const last = latest(reading.reading_progress);
+            return (
+              <Card key={reading.id} className="gap-3">
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Abrir leitura de ${reading.book.title}`}
+                  onPress={() => router.push(`/leitura/${reading.id}`)}
+                  className="flex-row gap-4">
+                  <BookCover book={reading.book} width={56} />
+                  <View className="flex-1 justify-center gap-1">
+                    <Body className="font-semibold" style={serif} numberOfLines={2}>
+                      {reading.book.title}
+                    </Body>
+                    <Muted numberOfLines={1}>{reading.book.authors.join(', ')}</Muted>
+                    <Muted>{describe(last, reading.book)}</Muted>
+                  </View>
+                </Pressable>
+                <View className="flex-row items-center gap-3">
+                  <View className="flex-1">
+                    <ProgressBar
+                      value={fractionOf(last, reading.book)}
+                      accessibilityLabel={`Progresso de ${reading.book.title}`}
+                    />
+                  </View>
+                  <Chip label="progresso" icon="add" onPress={() => openProgress(reading)} />
                 </View>
               </Card>
-            </Pressable>
-          ))
+            );
+          })
         ) : (
           <EmptyState
             icon="book-outline"
@@ -126,6 +165,17 @@ export default function HomeScreen() {
           </ScrollView>
         </View>
       ) : null}
+      <ProgressSheet
+        target={progressFor}
+        onClose={() => setProgressFor(null)}
+        onSaved={({ reachedEnd }) => {
+          const id = progressFor?.id;
+          setProgressFor(null);
+          invalidate();
+          if (reachedEnd && id)
+            router.push({ pathname: '/leitura/[id]', params: { id, concluir: '1' } });
+        }}
+      />
     </Screen>
   );
 }

@@ -15,6 +15,8 @@ type ReadingFieldsProps = {
   onChange: (patch: Partial<ReadingFormValues>) => void;
   /** Sem exemplar: pergunta a origem (emprestado, biblioteca…) e não permite "não registrar". */
   external: boolean;
+  /** Esconde "Não registrar" (quando a tela existe só para registrar a leitura). */
+  required?: boolean;
 };
 
 const EXTERNAL_ORIGINS: ReadingOrigin[] = [
@@ -25,9 +27,14 @@ const EXTERNAL_ORIGINS: ReadingOrigin[] = [
 ];
 
 /** "Já li / lendo / quero ler" da pré-visualização. */
-export function ReadingFields({ values, onChange, external }: ReadingFieldsProps) {
+export function ReadingFields({
+  values,
+  onChange,
+  external,
+  required = false,
+}: ReadingFieldsProps) {
   const statusOptions: { value: ReadingChoice; label: string }[] = [
-    ...(external ? [] : [{ value: 'none' as const, label: 'Não registrar' }]),
+    ...(external || required ? [] : [{ value: 'none' as const, label: 'Não registrar' }]),
     { value: 'want', label: 'Quero ler' },
     { value: 'reading', label: 'Lendo' },
     { value: 'read', label: 'Já li' },

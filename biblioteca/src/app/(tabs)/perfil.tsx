@@ -147,9 +147,40 @@ export default function ProfileScreen() {
       </View>
 
       <View className="gap-2">
+        <Label className="px-1">Leituras</Label>
+        <Card flush>
+          <ListItem
+            icon="flag-outline"
+            title="Metas de leitura"
+            onPress={() => router.push('/metas')}
+          />
+          <ListItem
+            icon="sparkles-outline"
+            title="Meu ano em leituras"
+            onPress={() => router.push('/resumo')}
+          />
+        </Card>
+      </View>
+
+      <View className="gap-2">
+        <Label className="px-1">Leituras</Label>
+        <Card flush>
+          <ListItem
+            icon="flag-outline"
+            title="Metas de leitura"
+            onPress={() => router.push('/metas')}
+          />
+          <ListItem
+            icon="sparkles-outline"
+            title="Meu ano em leituras"
+            onPress={() => router.push('/resumo')}
+          />
+        </Card>
+      </View>
+
+      <View className="gap-2">
         <Label className="px-1">Em breve</Label>
         <Card flush>
-          <ListItem icon="flag-outline" title="Metas de leitura" badge="Em breve" />
           <ListItem icon="cloud-upload-outline" title="Importar e exportar" badge="Em breve" />
         </Card>
       </View>

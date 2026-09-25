@@ -1,7 +1,7 @@
 import { formatIsbn } from '@shared/isbn.ts';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
 import { BookCover } from '@/components/book-cover';
 import { Button } from '@/components/ui/button';
@@ -166,7 +166,11 @@ export default function BookDetailScreen() {
                   ),
                 )
                 .map((reading) => (
-                  <View key={reading.id} className="gap-0.5 border-b border-line px-4 py-3">
+                  <Pressable
+                    key={reading.id}
+                    accessibilityRole="button"
+                    onPress={() => router.push(`/leitura/${reading.id}`)}
+                    className="gap-0.5 border-b border-line px-4 py-3 active:bg-sunken">
                     <Text className="text-base text-ink">
                       {reading.member?.display_name ?? 'Alguém'} ·{' '}
                       {READING_STATUS_LABELS[reading.status]}
@@ -185,7 +189,7 @@ export default function BookDetailScreen() {
                     {reading.review ? (
                       <Body className="mt-1 italic">“{reading.review}”</Body>
                     ) : null}
-                  </View>
+                  </Pressable>
                 ))}
             </Card>
           )}

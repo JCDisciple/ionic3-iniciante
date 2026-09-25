@@ -110,6 +110,26 @@ As filhas usam FKs compostas `(id, library_id)`, então nada aponta para outra c
 - Empréstimos: lembrete por Web Push (`loan-reminders` + `public/sw.js`) no dia
   da devolução e a cada 7 dias de atraso; cobrança por link `wa.me`.
 
+### Leituras e relatórios (Fase 3)
+
+- Progresso sempre pela RPC `log_progress(reading, date, page|percent|minutes)`:
+  um registro por leitura e dia (registrar de novo substitui); "quero ler" e
+  "abandonado" viram "lendo". Concluir/abandonar pela RPC `finish_reading`, que
+  grava o progresso final (100%). Releitura = nova linha em `readings`
+  (`add_to_library` aceita `p_reading.copy_id` para um exemplar existente).
+- Unidade do progresso por formato (`src/lib/progress.ts`): físico → página,
+  e-book/assinatura → %, audiobook → minutos.
+- Estatísticas em `src/lib/stats.ts` (puras, testadas): um livro conta no mês em
+  que foi **terminado**; páginas = páginas do livro terminado. "Meus" filtra por
+  `member_id`; "da família" usa todas as leituras da casa.
+- Gráficos: componentes próprios em `src/components/charts` sobre
+  `react-native-svg` (em vez de react-native-gifted-charts, para seguir as
+  especificações de marca: colunas ≤24px com ponta arredondada, grade discreta,
+  toque para ver o valor, tabela equivalente em todo gráfico). Cores de dados em
+  `ChartColors` (`constants/theme.ts`), validadas contra as superfícies do app;
+  texto nunca usa cor de série. Um eixo só; filtros (meus/família, ano) numa
+  linha acima de todos os gráficos.
+
 ## Fases de entrega
 
 1. **Base** ✅ — Expo + Supabase, login (link mágico e Google), libraries e
@@ -117,7 +137,7 @@ As filhas usam FKs compostas `(id, library_id)`, então nada aponta para outra c
 2. **Acervo** ✅ — scanner (EAN-13), busca de ISBN em cascata numa Edge Function
    (BrasilAPI → Google Books → Open Library, com cache), modo lote, cadastro
    manual, gêneros editáveis, Física/Online com filtros, empréstimos com lembretes.
-3. **Leituras e relatórios** — status, origens externas, progresso, metas, as
+3. **Leituras e relatórios** ✅ — status, origens externas, progresso, metas, as
    quatro abas de relatórios (react-native-gifted-charts).
 4. **Importação e exportação** — Goodreads, Skoob, planilha com mapeamento,
    exportação CSV/JSON.

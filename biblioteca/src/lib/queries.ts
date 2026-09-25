@@ -3,15 +3,18 @@ import { useCallback } from 'react';
 
 import { supabase } from '@/lib/supabase';
 import { useCurrentLibrary } from '@/providers/library-provider';
+import type { StatsProgress, StatsReading } from '@/lib/stats';
 import type {
   Book,
   Copy,
+  Goal,
   Genre,
   GenreAlias,
   LibraryInvite,
   LibraryMember,
   Loan,
   Reading,
+  ReadingProgress,
   ReadingStatus,
 } from '@/types/models';
 
@@ -32,6 +35,14 @@ export const queryKeys = {
   openLoans: (libraryId: string) => ['library', libraryId, 'open-loans'] as const,
   myReadings: (libraryId: string, memberId: string) =>
     ['library', libraryId, 'member', memberId, 'readings'] as const,
+  reading: (libraryId: string, readingId: string) =>
+    ['library', libraryId, 'reading', readingId] as const,
+  goals: (libraryId: string, memberId: string) =>
+    ['library', libraryId, 'member', memberId, 'goals'] as const,
+  statsReadings: (libraryId: string, scope: string) =>
+    ['library', libraryId, 'stats', scope, 'readings'] as const,
+  statsProgress: (libraryId: string) => ['library', libraryId, 'stats', 'progress'] as const,
+  familyGoals: (libraryId: string) => ['library', libraryId, 'family-goals'] as const,
 };
 
 function unwrap<T>({ data, error }: { data: unknown; error: { message: string } | null }): T {
@@ -122,7 +133,11 @@ export function useRecentBooks(limit = 10) {
   });
 }
 
-export type ReadingWithBook = Reading & { book: Book };
+export type ReadingWithBook = Reading & {
+  book: Book;
+  copy: Pick<Copy, 'id' | 'format'> | null;
+  reading_progress: Pick<ReadingProgress, 'date' | 'page' | 'percent' | 'minutes'>[];
+};
 
 /** Minhas leituras (todas), da mais recente para a mais antiga. */
 export function useMyReadings() {
@@ -133,7 +148,9 @@ export function useMyReadings() {
       unwrap<ReadingWithBook[]>(
         await supabase
           .from('readings')
-          .select('*, book:books(*)')
+          .select(
+            '*, book:books(*), copy:copies(id, format), reading_progress(date, page, percent, minutes)',
+          )
           .eq('member_id', memberId)
           .order('updated_at', { ascending: false }),
       ),
@@ -240,5 +257,92 @@ export function useOpenLoans() {
           .is('returned_at', null)
           .order('due_at', { ascending: true, nullsFirst: false }),
       ),
+  });
+}
+
+export type ReadingDetail = Reading & {
+  book: Book;
+  copy: Pick<Copy, 'id' | 'format' | 'platform' | 'location' | 'status'> | null;
+  reading_progress: ReadingProgress[];
+};
+
+export function useReading(readingId: string | undefined) {
+  const { library_id } = useCurrentLibrary();
+  return useQuery({
+    queryKey: queryKeys.reading(library_id, readingId ?? ''),
+    enabled: !!readingId,
+    queryFn: async () =>
+      unwrap<ReadingDetail | null>(
+        await supabase
+          .from('readings')
+          .select(
+            '*, book:books(*), copy:copies(id, format, platform, location, status), reading_progress(*)',
+          )
+          .eq('library_id', library_id)
+          .eq('id', readingId!)
+          .maybeSingle(),
+      ),
+  });
+}
+
+/** Minhas metas (todos os anos). */
+export function useMyGoals() {
+  const { library_id, id: memberId } = useCurrentLibrary();
+  return useQuery({
+    queryKey: queryKeys.goals(library_id, memberId),
+    queryFn: async () =>
+      unwrap<Goal[]>(
+        await supabase
+          .from('goals')
+          .select('*')
+          .eq('member_id', memberId)
+          .order('year', { ascending: false }),
+      ),
+  });
+}
+
+/** Metas de todos da casa (para o relatório "da família"). */
+export function useFamilyGoals() {
+  const { library_id } = useCurrentLibrary();
+  return useQuery({
+    queryKey: queryKeys.familyGoals(library_id),
+    queryFn: async () =>
+      unwrap<Goal[]>(await supabase.from('goals').select('*').eq('library_id', library_id)),
+  });
+}
+
+/** Leituras para os relatórios: só as minhas ou as de toda a família. */
+export function useStatsReadings(scope: 'mine' | 'family') {
+  const { library_id, id: memberId } = useCurrentLibrary();
+  return useQuery({
+    queryKey: queryKeys.statsReadings(library_id, scope),
+    queryFn: async () => {
+      let query = supabase
+        .from('readings')
+        .select(
+          'id, member_id, book_id, status, origin, started_at, finished_at, rating, book:books(title, authors, pages, audio_minutes, cover_url, book_genres(genre_id)), copy:copies(format)',
+        )
+        .eq('library_id', library_id);
+      if (scope === 'mine') query = query.eq('member_id', memberId);
+      return unwrap<StatsReading[]>(await query);
+    },
+  });
+}
+
+/** Dias com registro de progresso (últimos ~400 dias), para ritmo e sequência. */
+export function useStatsProgress() {
+  const { library_id } = useCurrentLibrary();
+  return useQuery({
+    queryKey: queryKeys.statsProgress(library_id),
+    queryFn: async () => {
+      const since = new Date(Date.now() - 400 * 86_400_000).toISOString().slice(0, 10);
+      return unwrap<StatsProgress[]>(
+        await supabase
+          .from('reading_progress')
+          .select('reading_id, date')
+          .eq('library_id', library_id)
+          .gte('date', since),
+      );
+    },
   });
 }

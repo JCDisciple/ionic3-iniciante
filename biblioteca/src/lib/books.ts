@@ -42,6 +42,8 @@ export type ReadingInput = {
   lent_by: string | null;
   started_at: string | null;
   finished_at: string | null;
+  /** Exemplar já existente (releitura do próprio acervo). */
+  copy_id?: string | null;
 };
 
 function fail(error: { message: string } | null) {
@@ -150,4 +152,89 @@ export async function uploadCover(libraryId: string, uri: string, mimeType = 'im
   });
   fail(error);
   return supabase.storage.from('covers').getPublicUrl(path).data.publicUrl;
+}
+
+// ---------------------------------------------------------------------------
+// Leituras (Fase 3)
+// ---------------------------------------------------------------------------
+
+export async function logProgress(params: {
+  readingId: string;
+  date: string;
+  page: number | null;
+  percent: number | null;
+  minutes: number | null;
+}) {
+  const { error } = await supabase.rpc('log_progress', {
+    p_reading_id: params.readingId,
+    p_date: params.date,
+    p_page: params.page,
+    p_percent: params.percent,
+    p_minutes: params.minutes,
+  });
+  fail(error);
+}
+
+export async function deleteProgress(progressId: string) {
+  const { error } = await supabase.from('reading_progress').delete().eq('id', progressId);
+  fail(error);
+}
+
+export async function finishReading(params: {
+  readingId: string;
+  status: 'read' | 'abandoned';
+  finishedAt: string;
+  rating: number | null;
+  review: string | null;
+}) {
+  const { error } = await supabase.rpc('finish_reading', {
+    p_reading_id: params.readingId,
+    p_status: params.status,
+    p_finished_at: params.finishedAt,
+    p_rating: params.rating,
+    p_review: params.review,
+  });
+  fail(error);
+}
+
+export async function updateReading(
+  readingId: string,
+  changes: Partial<{
+    status: ReadingStatus;
+    started_at: string | null;
+    finished_at: string | null;
+    rating: number | null;
+    review: string | null;
+    origin: ReadingOrigin;
+    lent_by: string | null;
+  }>,
+) {
+  const { error } = await supabase.from('readings').update(changes).eq('id', readingId);
+  fail(error);
+}
+
+export async function deleteReading(readingId: string) {
+  const { error } = await supabase.from('readings').delete().eq('id', readingId);
+  fail(error);
+}
+
+/** Cria ou atualiza a meta do ano (uma por pessoa e ano). */
+export async function saveGoal(params: {
+  libraryId: string;
+  memberId: string;
+  year: number;
+  targetBooks: number | null;
+  targetPages: number | null;
+}) {
+  const { error } = await supabase.from('goals').upsert(
+    {
+      library_id: params.libraryId,
+      member_id: params.memberId,
+      year: params.year,
+      target_books: params.targetBooks,
+      target_pages: params.targetPages,
+    },
+    { onConflict: 'member_id,year' },
+  );
+  fail(error);
 }

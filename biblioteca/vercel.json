@@ -19,6 +19,14 @@
     {
       "source": "/emprestar/:copyId",
       "destination": "/emprestar/[copyId]"
+    },
+    {
+      "source": "/leitura/:id",
+      "destination": "/leitura/[id]"
+    },
+    {
+      "source": "/leitura/:id",
+      "destination": "/leitura/[id]"
     }
   ],
   "headers": [

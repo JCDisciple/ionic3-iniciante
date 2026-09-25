@@ -11,6 +11,7 @@ import { ReadingFields } from '@/components/book/reading-fields';
 import { BookCover } from '@/components/book-cover';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Chip } from '@/components/ui/chip';
 import { Icon } from '@/components/ui/icon';
 import { Screen } from '@/components/ui/screen';
 import { SegmentedControl } from '@/components/ui/segmented-control';
@@ -32,10 +33,16 @@ import { todayISO } from '@/lib/dates';
 import { getDraft } from '@/lib/draft-store';
 import { vibrateSuccess } from '@/lib/feedback';
 import { mapCategories } from '@/lib/genres';
+import { FORMAT_LABELS } from '@/lib/labels';
 import { lookupIsbn } from '@/lib/lookup';
-import { useBook, useGenreAliases, useGenres, useInvalidateLibrary } from '@/lib/queries';
+import {
+  useBook,
+  useGenreAliases,
+  useGenres,
+  useInvalidateLibrary,
+  type BookDetail,
+} from '@/lib/queries';
 import { useCurrentLibrary } from '@/providers/library-provider';
-import type { Book } from '@/types/models';
 
 type Params = { isbn?: string; draft?: string; bookId?: string; acao?: string; lote?: string };
 type Mode = 'new' | 'copy' | 'reading';
@@ -180,7 +187,7 @@ function Missing() {
 
 type BookEditorProps = {
   mode: Mode;
-  existingBook?: Book;
+  existingBook?: BookDetail;
   initialValues?: BookFormValues;
   initialGenreIds?: string[];
   initialSuggestions?: string[];
@@ -204,8 +211,11 @@ function BookEditor({
   const [book, setBook] = useState<BookFormValues | undefined>(initialValues);
   const [genreIds, setGenreIds] = useState(initialGenreIds);
   const [suggestions, setSuggestions] = useState(initialSuggestions);
+  const activeCopies = (existingBook?.copies ?? []).filter((c) => c.status === 'active');
+  // Releitura do próprio acervo: aponta para um exemplar existente.
+  const [readingCopyId, setReadingCopyId] = useState<string | null>(activeCopies[0]?.id ?? null);
   const [ownership, setOwnership] = useState<'own' | 'external'>(
-    mode === 'reading' ? 'external' : 'own',
+    mode === 'reading' && activeCopies.length === 0 ? 'external' : 'own',
   );
   const [copy, setCopy] = useState(emptyCopyForm);
   const [reading, setReading] = useState(() =>
@@ -217,7 +227,10 @@ function BookEditor({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const hasCopy = ownership === 'own';
+  /** Cria um exemplar novo (cadastro normal ou "novo exemplar"). */
+  const hasCopy = mode !== 'reading' && ownership === 'own';
+  /** A leitura é de um exemplar da casa (novo ou existente). */
+  const readingIsOwn = mode === 'reading' ? ownership === 'own' && !!readingCopyId : hasCopy;
 
   function changeOwnership(value: 'own' | 'external') {
     setOwnership(value);
@@ -245,7 +258,12 @@ function BookEditor({
         book: existingBook ? { id: existingBook.id } : bookResult.input!,
         genreIds: existingBook ? [] : genreIds,
         copy: hasCopy ? copyResult.input : null,
-        reading: toReadingInput(reading, hasCopy),
+        reading: (() => {
+          const input = toReadingInput(reading, readingIsOwn);
+          return input && mode === 'reading' && readingIsOwn
+            ? { ...input, copy_id: readingCopyId }
+            : input;
+        })(),
       });
       vibrateSuccess();
       invalidate();
@@ -323,14 +341,41 @@ function BookEditor({
         </View>
       ) : null}
 
+      {mode === 'reading' && activeCopies.length > 0 ? (
+        <View className="gap-2">
+          <Subheading>Qual exemplar?</Subheading>
+          <View className="flex-row flex-wrap gap-2">
+            {activeCopies.map((c) => (
+              <Chip
+                key={c.id}
+                label={[FORMAT_LABELS[c.format], c.platform ?? c.location]
+                  .filter(Boolean)
+                  .join(' · ')}
+                selected={ownership === 'own' && readingCopyId === c.id}
+                onPress={() => {
+                  setOwnership('own');
+                  setReadingCopyId(c.id);
+                }}
+              />
+            ))}
+            <Chip
+              label="Outra origem"
+              selected={ownership === 'external'}
+              onPress={() => changeOwnership('external')}
+            />
+          </View>
+        </View>
+      ) : null}
+
       <View className="gap-3">
         <Subheading>Leitura</Subheading>
-        {!hasCopy ? (
+        {!readingIsOwn ? (
           <Muted>A leitura fica no seu histórico, sem o livro aparecer no acervo.</Muted>
         ) : null}
         <ReadingFields
           values={reading}
-          external={!hasCopy}
+          external={!readingIsOwn}
+          required={mode === 'reading'}
           onChange={(patch) => setReading((r) => ({ ...r, ...patch }))}
         />
       </View>
