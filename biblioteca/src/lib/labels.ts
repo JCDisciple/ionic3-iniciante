@@ -48,3 +48,9 @@ export const LANGUAGE_LABELS: Record<string, string> = {
   it: 'Italiano',
   ja: 'Japonês',
 };
+
+export const WISH_PRIORITIES: { value: 1 | 2 | 3; label: string }[] = [
+  { value: 3, label: 'Quero muito' },
+  { value: 2, label: 'Quero' },
+  { value: 1, label: 'Um dia' },
+];

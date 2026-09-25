@@ -8,6 +8,7 @@ import { useEffect } from 'react';
 
 import { SetupNotice } from '@/components/setup-notice';
 import { navigationTheme } from '@/constants/theme';
+import { useNotificationRouting } from '@/hooks/use-notification-routing';
 import { useScheme } from '@/hooks/use-palette';
 import { queryClient } from '@/lib/query-client';
 import { isSupabaseConfigured } from '@/lib/supabase';
@@ -39,6 +40,7 @@ export default function RootLayout() {
 
 function RootNavigator() {
   const { session } = useAuth();
+  useNotificationRouting();
   const { current, isLoading } = useLibrary();
 
   useEffect(() => {
@@ -82,11 +84,17 @@ function RootNavigator() {
         <Stack.Screen name="metas" options={{ headerShown: true }} />
         <Stack.Screen name="importar" options={{ headerShown: true }} />
         <Stack.Screen name="exportar" options={{ headerShown: true }} />
+        <Stack.Screen name="planos" options={{ headerShown: true }} />
+        <Stack.Screen name="desejos" options={{ headerShown: true }} />
+        <Stack.Screen name="compartilhar" options={{ headerShown: true }} />
         <Stack.Screen name="resumo" options={{ headerShown: true, title: 'Meu ano em leituras' }} />
         <Stack.Screen name="leitura/[id]" options={{ headerShown: true }} />
         <Stack.Screen name="metas" options={{ headerShown: true }} />
         <Stack.Screen name="importar" options={{ headerShown: true }} />
         <Stack.Screen name="exportar" options={{ headerShown: true }} />
+        <Stack.Screen name="planos" options={{ headerShown: true }} />
+        <Stack.Screen name="desejos" options={{ headerShown: true }} />
+        <Stack.Screen name="compartilhar" options={{ headerShown: true }} />
         <Stack.Screen name="resumo" options={{ headerShown: true, title: 'Meu ano em leituras' }} />
       </Stack.Protected>
 

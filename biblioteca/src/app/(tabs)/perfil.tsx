@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 
+import { DailyReminderRow } from '@/components/daily-reminder-row';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ListItem } from '@/components/ui/list-item';
@@ -88,6 +89,12 @@ export default function ProfileScreen() {
             badge={isOwner ? 'Dono' : 'Membro'}
             onPress={() => router.push('/familia')}
           />
+          <ListItem
+            icon="sparkles-outline"
+            title="Plano"
+            subtitle={current.library.plan === 'pro' ? 'Pro' : 'Gratuito · veja o Pro'}
+            onPress={() => router.push('/planos')}
+          />
           {memberships.length > 1
             ? memberships
                 .filter((m) => m.library_id !== current.library_id)
@@ -143,6 +150,7 @@ export default function ProfileScreen() {
               onPress={push.state === 'denied' || push.busy ? undefined : push.toggle}
             />
           ) : null}
+          <DailyReminderRow />
         </Card>
       </View>
 
@@ -153,6 +161,11 @@ export default function ProfileScreen() {
             icon="flag-outline"
             title="Metas de leitura"
             onPress={() => router.push('/metas')}
+          />
+          <ListItem
+            icon="gift-outline"
+            title="Lista de desejos"
+            onPress={() => router.push('/desejos')}
           />
           <ListItem
             icon="sparkles-outline"

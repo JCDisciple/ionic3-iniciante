@@ -25,9 +25,12 @@ const INVITE_ERRORS: Record<string, string> = {
   invite_already_used: 'Este convite já foi usado.',
   invite_expired: 'Este convite expirou. Peça um novo link a quem convidou.',
   invite_email_mismatch: 'Este convite foi enviado para outro e-mail.',
+  plan_limit_members:
+    'A biblioteca chegou ao limite de pessoas do plano. Peça a quem convidou para conferir o plano.',
 };
 
 export function inviteErrorMessage(error: { message?: string } | null | undefined) {
-  const key = error?.message ?? '';
-  return INVITE_ERRORS[key] ?? 'Não foi possível aceitar o convite. Tente novamente.';
+  const message = error?.message ?? '';
+  const key = Object.keys(INVITE_ERRORS).find((k) => message.includes(k));
+  return key ? INVITE_ERRORS[key] : 'Não foi possível aceitar o convite. Tente novamente.';
 }

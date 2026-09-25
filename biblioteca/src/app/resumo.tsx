@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { Pressable, Text, View, useWindowDimensions } from 'react-native';
 
 import { BookCover } from '@/components/book-cover';
+import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Screen } from '@/components/ui/screen';
 import { Muted, serif } from '@/components/ui/typography';
@@ -85,6 +86,17 @@ export default function YearSummaryScreen() {
                 ))}
               </View>
             ) : null}
+
+            <Button
+              title="Compartilhar no Instagram"
+              icon="logo-instagram"
+              onPress={() =>
+                router.push({
+                  pathname: '/compartilhar',
+                  params: { tipo: 'ano', ano: String(year) },
+                })
+              }
+            />
 
             <View className="gap-2">
               <Muted>Na ordem em que você terminou</Muted>

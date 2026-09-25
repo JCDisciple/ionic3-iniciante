@@ -22,3 +22,21 @@ export async function shareLink(message: string, url: string): Promise<'shared' 
   await Share.share({ message: `${message}\n${url}` });
   return 'shared';
 }
+
+/** Compartilha só texto (ex.: lista de desejos). Na web sem Web Share, copia. */
+export async function shareText(text: string): Promise<'shared' | 'copied'> {
+  if (Platform.OS === 'web') {
+    if (typeof navigator !== 'undefined' && 'share' in navigator) {
+      try {
+        await navigator.share({ text });
+        return 'shared';
+      } catch {
+        // cancelado ou bloqueado: copia
+      }
+    }
+    await Clipboard.setStringAsync(text);
+    return 'copied';
+  }
+  await Share.share({ message: text });
+  return 'shared';
+}

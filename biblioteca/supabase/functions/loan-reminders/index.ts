@@ -1,5 +1,6 @@
 /**
- * Envia lembretes de devolução por Web Push. Chamada uma vez por dia pelo
+ * Envia lembretes de devolução por Web Push (PWA) e Expo Push (app das
+ * lojas). Chamada uma vez por dia pelo
  * Supabase Cron (ver README), com o cabeçalho `x-cron-secret`.
  *
  * Quem recebe: quem registrou o empréstimo (loans.created_by) ou, na falta, o
@@ -13,6 +14,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import webpush from 'npm:web-push@3.6.7';
 
 import { json } from '../_shared/cors.ts';
+import { EXPO_PUSH_URL, expoMessages, invalidTokens } from '../_shared/expo-push.ts';
 import { reminderMessage, shouldRemind, todayIn } from '../_shared/reminders.ts';
 
 type DueLoan = {
@@ -64,20 +66,17 @@ Deno.serve(async (req) => {
 
     const { data: subscriptions } = await admin
       .from('push_subscriptions')
-      .select('id, endpoint, p256dh, auth')
+      .select('id, kind, endpoint, p256dh, auth')
       .eq('user_id', userId);
 
-    const message = reminderMessage(
-      loan.copy?.book?.title ?? 'Um livro',
-      loan.borrower_name,
-      loan.due_at,
-      today,
-    );
+    const message = reminderMessage(loan.copy?.book?.title ?? 'Um livro', loan.borrower_name, loan.due_at, today);
+    const web = (subscriptions ?? []).filter((sub) => sub.kind === 'web');
+    const expo = (subscriptions ?? []).filter((sub) => sub.kind === 'expo');
 
-    for (const sub of subscriptions ?? []) {
+    for (const sub of web) {
       try {
         await webpush.sendNotification(
-          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh!, auth: sub.auth! } },
           JSON.stringify({ ...message, tag: `loan-${loan.id}` }),
         );
         sent++;
@@ -88,6 +87,23 @@ Deno.serve(async (req) => {
         } else {
           console.error('push failed', status, err);
         }
+      }
+    }
+
+    if (expo.length > 0) {
+      const tokens = expo.map((sub) => sub.endpoint);
+      try {
+        const response = await fetch(EXPO_PUSH_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify(expoMessages(tokens, message)),
+        });
+        const { data: tickets = [] } = (await response.json()) as { data?: { status: 'ok' | 'error' }[] };
+        sent += tickets.filter((t) => t.status === 'ok').length;
+        const dead = invalidTokens(tokens, tickets);
+        if (dead.length) await admin.from('push_subscriptions').delete().in('endpoint', dead);
+      } catch (err) {
+        console.error('expo push failed', err);
       }
     }
 

@@ -9,13 +9,15 @@ import { CopyFields } from '@/components/book/copy-fields';
 import { GenrePicker } from '@/components/book/genre-picker';
 import { ReadingFields } from '@/components/book/reading-fields';
 import { BookCover } from '@/components/book-cover';
+import { PlanLimitNotice } from '@/components/plan-limit-notice';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
 import { Icon } from '@/components/ui/icon';
 import { Screen } from '@/components/ui/screen';
 import { SegmentedControl } from '@/components/ui/segmented-control';
-import { Body, Muted, Subheading } from '@/components/ui/typography';
+import { TextField } from '@/components/ui/text-field';
+import { Body, Label, Muted, Subheading } from '@/components/ui/typography';
 import { usePalette } from '@/hooks/use-palette';
 import { batchStore } from '@/lib/batch-store';
 import {
@@ -28,12 +30,13 @@ import {
   type BookFormValues,
   type FormErrors,
 } from '@/lib/book-form';
-import { addToLibrary, findBookByIsbn } from '@/lib/books';
+import { addToLibrary, addWish, findBookByIsbn } from '@/lib/books';
 import { todayISO } from '@/lib/dates';
 import { getDraft } from '@/lib/draft-store';
 import { vibrateSuccess } from '@/lib/feedback';
 import { mapCategories } from '@/lib/genres';
-import { FORMAT_LABELS } from '@/lib/labels';
+import { planLimitError, type PlanLimitKind } from '@/lib/plans';
+import { FORMAT_LABELS, WISH_PRIORITIES } from '@/lib/labels';
 import { lookupIsbn } from '@/lib/lookup';
 import {
   useBook,
@@ -214,7 +217,7 @@ function BookEditor({
   const activeCopies = (existingBook?.copies ?? []).filter((c) => c.status === 'active');
   // Releitura do próprio acervo: aponta para um exemplar existente.
   const [readingCopyId, setReadingCopyId] = useState<string | null>(activeCopies[0]?.id ?? null);
-  const [ownership, setOwnership] = useState<'own' | 'external'>(
+  const [ownership, setOwnership] = useState<'own' | 'external' | 'wish'>(
     mode === 'reading' && activeCopies.length === 0 ? 'external' : 'own',
   );
   const [copy, setCopy] = useState(emptyCopyForm);
@@ -226,13 +229,18 @@ function BookEditor({
   const [errors, setErrors] = useState<FormErrors>({});
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [limit, setLimit] = useState<PlanLimitKind | null>(null);
 
   /** Cria um exemplar novo (cadastro normal ou "novo exemplar"). */
   const hasCopy = mode !== 'reading' && ownership === 'own';
   /** A leitura é de um exemplar da casa (novo ou existente). */
   const readingIsOwn = mode === 'reading' ? ownership === 'own' && !!readingCopyId : hasCopy;
 
-  function changeOwnership(value: 'own' | 'external') {
+  const [wishPriority, setWishPriority] = useState<1 | 2 | 3>(2);
+  const [wishNote, setWishNote] = useState('');
+  const isWish = mode === 'new' && ownership === 'wish';
+
+  function changeOwnership(value: 'own' | 'external' | 'wish') {
     setOwnership(value);
     if (value === 'external') {
       setReading((r) => ({
@@ -252,6 +260,25 @@ function BookEditor({
     if (Object.keys(allErrors).length > 0) return;
 
     setSaving(true);
+    if (isWish) {
+      try {
+        await addWish({
+          libraryId: current.library_id,
+          book: bookResult.input!,
+          genreIds,
+          priority: wishPriority,
+          note: wishNote.trim() || null,
+        });
+        vibrateSuccess();
+        invalidate();
+        if (batchIsbn) batchStore.update(batchIsbn, { state: 'saved' });
+        router.replace('/desejos');
+      } catch {
+        setSaveError('Não foi possível salvar. Verifique a conexão e tente de novo.');
+        setSaving(false);
+      }
+      return;
+    }
     try {
       const bookId = await addToLibrary({
         libraryId: current.library_id,
@@ -273,8 +300,11 @@ function BookEditor({
       } else {
         router.replace(`/livro/${bookId}`);
       }
-    } catch {
-      setSaveError('Não foi possível salvar. Verifique a conexão e tente de novo.');
+    } catch (e) {
+      setLimit(planLimitError(e));
+      setSaveError(
+        planLimitError(e) ? null : 'Não foi possível salvar. Verifique a conexão e tente de novo.',
+      );
       setSaving(false);
     }
   }
@@ -322,8 +352,9 @@ function BookEditor({
         <SegmentedControl
           accessibilityLabel="Este livro é seu?"
           options={[
-            { value: 'own', label: 'Tenho este livro' },
-            { value: 'external', label: 'Só registrar leitura' },
+            { value: 'own', label: 'Tenho' },
+            { value: 'external', label: 'Só leitura' },
+            { value: 'wish', label: 'Quero ter' },
           ]}
           value={ownership}
           onChange={changeOwnership}
@@ -367,25 +398,55 @@ function BookEditor({
         </View>
       ) : null}
 
-      <View className="gap-3">
-        <Subheading>Leitura</Subheading>
-        {!readingIsOwn ? (
-          <Muted>A leitura fica no seu histórico, sem o livro aparecer no acervo.</Muted>
-        ) : null}
-        <ReadingFields
-          values={reading}
-          external={!readingIsOwn}
-          required={mode === 'reading'}
-          onChange={(patch) => setReading((r) => ({ ...r, ...patch }))}
-        />
-      </View>
+      {isWish ? (
+        <View className="gap-3">
+          <Subheading>Lista de desejos</Subheading>
+          <View className="gap-1.5">
+            <Label>Prioridade</Label>
+            <View className="flex-row flex-wrap gap-2">
+              {WISH_PRIORITIES.map((p) => (
+                <Chip
+                  key={p.value}
+                  label={p.label}
+                  selected={wishPriority === p.value}
+                  onPress={() => setWishPriority(p.value)}
+                />
+              ))}
+            </View>
+          </View>
+          <TextField
+            label="Observação (opcional)"
+            placeholder="Ex.: edição de capa dura"
+            value={wishNote}
+            onChangeText={setWishNote}
+            maxLength={500}
+          />
+          <Muted>A família vê sua lista (ótimo para presentes). O livro não entra no acervo.</Muted>
+        </View>
+      ) : (
+        <View className="gap-3">
+          <Subheading>Leitura</Subheading>
+          {!readingIsOwn ? (
+            <Muted>A leitura fica no seu histórico, sem o livro aparecer no acervo.</Muted>
+          ) : null}
+          <ReadingFields
+            values={reading}
+            external={!readingIsOwn}
+            required={mode === 'reading'}
+            onChange={(patch) => setReading((r) => ({ ...r, ...patch }))}
+          />
+        </View>
+      )}
 
       {saveError ? <Body className="text-danger">{saveError}</Body> : null}
+      {limit ? <PlanLimitNotice kind={limit} /> : null}
       {Object.keys(errors).length > 0 ? (
         <Body className="text-danger">Revise os campos destacados.</Body>
       ) : null}
       <Button
-        title={hasCopy ? 'Salvar na estante' : 'Salvar leitura'}
+        title={
+          isWish ? 'Salvar na lista de desejos' : hasCopy ? 'Salvar na estante' : 'Salvar leitura'
+        }
         icon="checkmark"
         loading={saving}
         onPress={save}

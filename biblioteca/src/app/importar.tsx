@@ -5,6 +5,7 @@ import { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Platform, Pressable, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
+import { PlanLimitNotice } from '@/components/plan-limit-notice';
 import { Card } from '@/components/ui/card';
 import { Chip } from '@/components/ui/chip';
 import { Icon, type IconName } from '@/components/ui/icon';
@@ -45,6 +46,7 @@ import {
   type RowAction,
 } from '@/lib/import/plan';
 import { READING_STATUS_LABELS } from '@/lib/labels';
+import { planLimitError } from '@/lib/plans';
 import { useGenreAliases, useGenres, useInvalidateLibrary } from '@/lib/queries';
 import { useAuth } from '@/providers/auth-provider';
 import { useCurrentLibrary } from '@/providers/library-provider';
@@ -679,6 +681,9 @@ function DoneStep({
           </Body>
         ) : null}
       </Card>
+      {result.errors.some((e) => planLimitError({ message: e.message }) === 'books') ? (
+        <PlanLimitNotice kind="books" />
+      ) : null}
       {result.errors.length > 0 ? (
         <Card className="gap-1">
           <Label>Linhas com erro</Label>

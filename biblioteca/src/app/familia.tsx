@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Linking, Pressable, Text, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
+import { PlanLimitNotice } from '@/components/plan-limit-notice';
 import { Card } from '@/components/ui/card';
 import { Icon } from '@/components/ui/icon';
 import { Screen } from '@/components/ui/screen';
@@ -11,6 +12,7 @@ import { TextField } from '@/components/ui/text-field';
 import { Body, Label, Muted, serif } from '@/components/ui/typography';
 import { confirm } from '@/lib/confirm';
 import { inviteUrl } from '@/lib/invites';
+import { planLimitError, type PlanLimitKind } from '@/lib/plans';
 import { queryKeys, useMembers, useOpenInvites } from '@/lib/queries';
 import { shareLink } from '@/lib/share';
 import { supabase } from '@/lib/supabase';
@@ -36,6 +38,7 @@ export default function FamilyScreen() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [emailError, setEmailError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [limit, setLimit] = useState<PlanLimitKind | null>(null);
 
   const invalidateInvites = () =>
     queryClient.invalidateQueries({ queryKey: queryKeys.invites(current.library_id) });
@@ -62,8 +65,13 @@ export default function FamilyScreen() {
   }
 
   async function handleLinkInvite() {
-    const invite = await createInvite.mutateAsync(null);
-    await shareInvite(invite);
+    try {
+      const invite = await createInvite.mutateAsync(null);
+      await shareInvite(invite);
+    } catch (e) {
+      setLimit(planLimitError(e));
+      if (!planLimitError(e)) setNotice('Não foi possível criar o convite. Tente de novo.');
+    }
   }
 
   async function handleEmailInvite() {
@@ -73,7 +81,14 @@ export default function FamilyScreen() {
       return;
     }
     setEmailError(null);
-    const invite = await createInvite.mutateAsync(email);
+    let invite: LibraryInvite;
+    try {
+      invite = await createInvite.mutateAsync(email);
+    } catch (e) {
+      setLimit(planLimitError(e));
+      if (!planLimitError(e)) setEmailError('Não foi possível criar o convite. Tente de novo.');
+      return;
+    }
     setInviteEmail('');
     const subject = encodeURIComponent(`Convite para a ${current.library.name}`);
     const body = encodeURIComponent(
@@ -186,6 +201,7 @@ export default function FamilyScreen() {
               />
             </Card>
             {notice ? <Muted className="px-1 text-success">{notice}</Muted> : null}
+            {limit ? <PlanLimitNotice kind={limit} /> : null}
           </View>
 
           {invites.data && invites.data.length > 0 ? (

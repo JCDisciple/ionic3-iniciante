@@ -138,3 +138,14 @@ export type Membership = LibraryMember & { library: Library };
 
 /** Metadados normalizados vindos da Edge Function isbn-lookup. */
 export type { BookData } from '@shared/book-sources.ts';
+
+export type Wish = {
+  id: string;
+  library_id: string;
+  book_id: string;
+  member_id: string;
+  priority: 1 | 2 | 3;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+};

@@ -238,3 +238,35 @@ export async function saveGoal(params: {
   );
   fail(error);
 }
+
+// ---------------------------------------------------------------------------
+// Lista de desejos (Fase 5)
+// ---------------------------------------------------------------------------
+
+export async function addWish(params: {
+  libraryId: string;
+  book: Partial<BookInput> & { id?: string };
+  genreIds: string[];
+  priority: 1 | 2 | 3;
+  note: string | null;
+}): Promise<string> {
+  const { data, error } = await supabase.rpc('add_wish', {
+    p_library_id: params.libraryId,
+    p_book: params.book,
+    p_genre_ids: params.genreIds,
+    p_priority: params.priority,
+    p_note: params.note,
+  });
+  fail(error);
+  return data as string;
+}
+
+export async function fulfillWish(wishId: string, copy: Partial<CopyInput>) {
+  const { error } = await supabase.rpc('fulfill_wish', { p_wish_id: wishId, p_copy: copy });
+  fail(error);
+}
+
+export async function removeWish(wishId: string) {
+  const { error } = await supabase.from('wishes').delete().eq('id', wishId);
+  fail(error);
+}

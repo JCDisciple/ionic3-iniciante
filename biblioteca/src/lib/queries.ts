@@ -3,6 +3,7 @@ import { useCallback } from 'react';
 
 import { supabase } from '@/lib/supabase';
 import { useCurrentLibrary } from '@/providers/library-provider';
+import type { Usage } from '@/lib/plans';
 import type { StatsProgress, StatsReading } from '@/lib/stats';
 import type {
   Book,
@@ -16,6 +17,7 @@ import type {
   Reading,
   ReadingProgress,
   ReadingStatus,
+  Wish,
 } from '@/types/models';
 
 /**
@@ -117,19 +119,27 @@ export function useShelf() {
   });
 }
 
+/** Últimos livros que entraram no acervo (livros só da lista de desejos ficam de fora). */
 export function useRecentBooks(limit = 10) {
   const { library_id } = useCurrentLibrary();
   return useQuery({
     queryKey: queryKeys.recentBooks(library_id),
-    queryFn: async () =>
-      unwrap<Book[]>(
+    queryFn: async () => {
+      const rows = unwrap<{ book: Book }[]>(
         await supabase
-          .from('books')
-          .select('*')
+          .from('copies')
+          .select('book:books(*)')
           .eq('library_id', library_id)
+          .eq('status', 'active')
           .order('created_at', { ascending: false })
-          .limit(limit),
-      ),
+          .limit(limit * 2),
+      );
+      const seen = new Set<string>();
+      return rows
+        .map((r) => r.book)
+        .filter((b) => b && !seen.has(b.id) && seen.add(b.id))
+        .slice(0, limit);
+    },
   });
 }
 
@@ -344,5 +354,40 @@ export function useStatsProgress() {
           .gte('date', since),
       );
     },
+  });
+}
+
+/** Plano atual e uso × limites (RPC library_usage). */
+export function useLibraryUsage() {
+  const { library_id } = useCurrentLibrary();
+  return useQuery({
+    queryKey: ['library', library_id, 'usage'] as const,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('library_usage', { p_library_id: library_id });
+      if (error) throw new Error(error.message);
+      return ((data ?? []) as Usage[])[0] ?? null;
+    },
+  });
+}
+
+export type WishWithBook = Wish & {
+  book: Book;
+  member: Pick<LibraryMember, 'id' | 'display_name'> | null;
+};
+
+/** Desejos de toda a casa (cada um edita os seus). */
+export function useWishes() {
+  const { library_id } = useCurrentLibrary();
+  return useQuery({
+    queryKey: ['library', library_id, 'wishes'] as const,
+    queryFn: async () =>
+      unwrap<WishWithBook[]>(
+        await supabase
+          .from('wishes')
+          .select('*, book:books(*), member:library_members(id, display_name)')
+          .eq('library_id', library_id)
+          .order('priority', { ascending: false })
+          .order('created_at', { ascending: false }),
+      ),
   });
 }

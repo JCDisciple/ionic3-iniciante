@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
 import { BookCover } from '@/components/book-cover';
+import { PlanLimitNotice } from '@/components/plan-limit-notice';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -16,6 +17,7 @@ import { batchStore, useBatch, type BatchItem } from '@/lib/batch-store';
 import { addToLibrary, findBookByIsbn } from '@/lib/books';
 import { vibrateSuccess } from '@/lib/feedback';
 import { mapCategories } from '@/lib/genres';
+import { planLimitError, type PlanLimitKind } from '@/lib/plans';
 import { lookupIsbn } from '@/lib/lookup';
 import { useGenreAliases, useGenres, useInvalidateLibrary } from '@/lib/queries';
 import { useCurrentLibrary } from '@/providers/library-provider';
@@ -32,6 +34,7 @@ export default function BatchReviewScreen() {
   const [location, setLocation] = useState('');
   const [saving, setSaving] = useState(false);
   const [savedCount, setSavedCount] = useState(0);
+  const [limit, setLimit] = useState<PlanLimitKind | null>(null);
   const inFlight = useRef(new Set<string>());
 
   // Busca os pendentes, no máximo 3 por vez.
@@ -88,8 +91,13 @@ export default function BatchReviewScreen() {
         });
         batchStore.update(item.isbn13, { state: 'saved' });
         saved++;
-      } catch {
-        batchStore.update(item.isbn13, { state: 'error' });
+      } catch (e) {
+        const reached = planLimitError(e);
+        batchStore.update(item.isbn13, { state: reached ? 'found' : 'error' });
+        if (reached) {
+          setLimit(reached);
+          break;
+        }
       }
     }
     setSaving(false);
@@ -120,6 +128,8 @@ export default function BatchReviewScreen() {
             {visible.length === 0 ? <Button title="Concluir" onPress={finish} /> : null}
           </Card>
         ) : null}
+
+        {limit ? <PlanLimitNotice kind={limit} /> : null}
 
         {visible.length === 0 && savedCount === 0 ? (
           <EmptyState

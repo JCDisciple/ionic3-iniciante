@@ -28,3 +28,7 @@ secret = "env(SUPABASE_AUTH_GOOGLE_SECRET)"
 # Chamada pelo Supabase Cron com x-cron-secret, sem JWT de usuário.
 [functions.loan-reminders]
 verify_jwt = false
+
+# Chamado pelo RevenueCat, autenticado pelo cabeçalho Authorization próprio.
+[functions.billing-webhook]
+verify_jwt = false

@@ -12,7 +12,7 @@ import { OptionSheet } from '@/components/ui/option-sheet';
 import { Screen } from '@/components/ui/screen';
 import { Body, Heading, Label, Muted, Subheading } from '@/components/ui/typography';
 import { usePalette } from '@/hooks/use-palette';
-import { deleteBook, deleteCopy, returnLoan, updateCopy } from '@/lib/books';
+import { addWish, deleteBook, deleteCopy, returnLoan, updateCopy } from '@/lib/books';
 import { confirm } from '@/lib/confirm';
 import { dueLabel, formatDate, todayISO } from '@/lib/dates';
 import {
@@ -137,7 +137,26 @@ export default function BookDetailScreen() {
         <View className="gap-3">
           <Subheading>Exemplares</Subheading>
           {activeCopies.length === 0 ? (
-            <Muted>Nenhum exemplar no acervo. As leituras continuam no histórico.</Muted>
+            <View className="gap-2">
+              <Muted>Nenhum exemplar no acervo. As leituras continuam no histórico.</Muted>
+              <View className="flex-row">
+                <Chip
+                  label="Quero ter (lista de desejos)"
+                  icon="gift-outline"
+                  onPress={async () => {
+                    await addWish({
+                      libraryId: data.library_id,
+                      book: { id: data.id },
+                      genreIds: [],
+                      priority: 2,
+                      note: null,
+                    });
+                    invalidate();
+                    router.push('/desejos');
+                  }}
+                />
+              </View>
+            </View>
           ) : (
             activeCopies.map((copy) => (
               <CopyCard key={copy.id} copy={copy} onChanged={invalidate} />

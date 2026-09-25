@@ -17,7 +17,7 @@ comercial depois (arquitetura multiusuário desde já). PRD completo em
 - **Dados:** Supabase (Postgres + RLS, Auth, Storage, Edge Functions) via
   `src/lib/supabase.ts`; leitura/cache com TanStack Query (`src/lib/queries.ts`).
 - **Web:** PWA estático na Vercel (`vercel.json`, `public/sw.js`, `src/app/+html.tsx`).
-- **Lojas (v2):** EAS Build + RevenueCat.
+- **Lojas (v2):** EAS Build (`eas.json`) + RevenueCat + expo-notifications.
 
 Leia `biblioteca/AGENTS.md` antes de mexer em APIs do Expo: elas mudam a cada SDK.
 
@@ -52,23 +52,26 @@ são da library; leituras e metas são de cada membro. Todas as tabelas têm `id
 `created_at`, `updated_at` (trigger). Esquema em
 `biblioteca/supabase/migrations/`.
 
-| Tabela | Campos principais |
-| --- | --- |
-| `libraries` | name, owner_id, plan (free/pro) |
-| `library_members` | library_id, user_id, role (owner/member), display_name |
-| `library_invites` | library_id, token, email?, role, invited_by, expires_at, accepted_at |
-| `books` | library_id, isbn_13, isbn_10, title, subtitle, authors[], publisher, year, pages, audio_minutes, language, cover_url, source |
-| `genres` | library_id, name, parent_id |
-| `book_genres` | library_id, book_id, genre_id |
-| `copies` | library_id, book_id, format (physical/ebook/audiobook/subscription), platform, location, condition, acquired_at, price, owner_member_id, status (active/sold/donated/lost/expired) |
-| `loans` | library_id, copy_id, borrower_name, borrower_phone, lent_at, due_at, returned_at |
-| `readings` | library_id, member_id, book_id, copy_id?, origin (own/borrowed/library/subscription/no_longer_owned), lent_by, status (want/reading/read/abandoned), started_at, finished_at, rating 1–5, review |
-| `reading_progress` | library_id, reading_id, date, page, percent, minutes |
-| `goals` | library_id, member_id, year, target_books, target_pages |
-| `imports` | library_id, source (goodreads/skoob/sheet), file_url, status, rows_total, rows_imported |
-| `genre_aliases` | library_id, alias (categoria normalizada), genre_id |
-| `isbn_cache` | isbn, found, data (só a Edge Function acessa) |
-| `push_subscriptions` | user_id, endpoint, p256dh, auth |
+| Tabela               | Campos principais                                                                                                                                                                                |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `libraries`          | name, owner_id, plan (free/pro)                                                                                                                                                                  |
+| `library_members`    | library_id, user_id, role (owner/member), display_name                                                                                                                                           |
+| `library_invites`    | library_id, token, email?, role, invited_by, expires_at, accepted_at                                                                                                                             |
+| `books`              | library_id, isbn_13, isbn_10, title, subtitle, authors[], publisher, year, pages, audio_minutes, language, cover_url, source                                                                     |
+| `genres`             | library_id, name, parent_id                                                                                                                                                                      |
+| `book_genres`        | library_id, book_id, genre_id                                                                                                                                                                    |
+| `copies`             | library_id, book_id, format (physical/ebook/audiobook/subscription), platform, location, condition, acquired_at, price, owner_member_id, status (active/sold/donated/lost/expired)               |
+| `loans`              | library_id, copy_id, borrower_name, borrower_phone, lent_at, due_at, returned_at                                                                                                                 |
+| `readings`           | library_id, member_id, book_id, copy_id?, origin (own/borrowed/library/subscription/no_longer_owned), lent_by, status (want/reading/read/abandoned), started_at, finished_at, rating 1–5, review |
+| `reading_progress`   | library_id, reading_id, date, page, percent, minutes                                                                                                                                             |
+| `goals`              | library_id, member_id, year, target_books, target_pages                                                                                                                                          |
+| `imports`            | library_id, source (goodreads/skoob/sheet), file_url, status, rows_total, rows_imported                                                                                                          |
+| `genre_aliases`      | library_id, alias (categoria normalizada), genre_id                                                                                                                                              |
+| `isbn_cache`         | isbn, found, data (só a Edge Function acessa)                                                                                                                                                    |
+| `push_subscriptions` | user_id, kind (web/expo), endpoint, p256dh, auth                                                                                                                                                 |
+| `plans`              | id (free/pro), name, max_books, max_members                                                                                                                                                      |
+| `subscriptions`      | user_id, provider, product_id, status, expires_at                                                                                                                                                |
+| `wishes`             | library_id, member_id, book_id, priority 1–3, note (sai da lista ao virar exemplar)                                                                                                              |
 
 Diferenças em relação ao PRD, para RLS e integridade: `library_invites`,
 `genre_aliases`, `isbn_cache` e `push_subscriptions` são novas; `loans` também
@@ -149,6 +152,29 @@ As filhas usam FKs compostas `(id, library_id)`, então nada aponta para outra c
   Download no navegador (`save-file.web.ts`) ou folha de compartilhamento no
   nativo (`save-file.ts`).
 
+### Versão 2 (Fase 5)
+
+- Planos: tabela `plans` (limites editáveis; `null` = ilimitado) e `subscriptions`
+  (só o webhook grava). O plano da casa (`libraries.plan`) segue a assinatura do
+  dono via `sync_plan_for_user` (só service role). Triggers `enforce_book_limit`
+  (livros distintos com exemplar ativo) e `enforce_member_limit` (membros e
+  convites) levantam `plan_limit_books`/`plan_limit_members`; o app mostra
+  `PlanLimitNotice` com link para `/planos`. Uso atual: RPC `library_usage`.
+- Cobrança: RevenueCat unifica App Store, Play e Web Billing (Stripe).
+  `src/lib/billing.ts` (react-native-purchases) e `billing.web.ts`
+  (@revenuecat/purchases-js); `app_user_id` = id do Supabase, entitlement `pro`.
+  Eventos chegam na Edge Function `billing-webhook` (lógica pura em
+  `_shared/billing.ts`).
+- Lista de desejos: tabela `wishes` (família lê, cada um escreve as suas), RPCs
+  `add_wish` e `fulfill_wish` (vira exemplar). Livro só desejado não aparece no
+  acervo nem conta no limite. Tela `/desejos`; opção "Quero ter" em `/livro/novo`.
+- Instagram: `src/lib/share-card.ts` gera SVG 1080×1920 (ano e meta), PNG por
+  canvas na web (`share-image.web.ts`) e `react-native-view-shot` + `expo-sharing`
+  no nativo. Tela `/compartilhar`.
+- Nativo: `eas.json` (development/preview/production), `expo-notifications`
+  (token Expo em `push_subscriptions.kind = 'expo'` via `save_expo_push_token`,
+  lembrete diário local, toque na notificação abre a tela certa).
+
 ## Fases de entrega
 
 1. **Base** ✅ — Expo + Supabase, login (link mágico e Google), libraries e
@@ -160,5 +186,5 @@ As filhas usam FKs compostas `(id, library_id)`, então nada aponta para outra c
    quatro abas de relatórios (gráficos próprios sobre react-native-svg).
 4. **Importação e exportação** ✅ — Goodreads, Skoob, planilha com mapeamento,
    exportação CSV/JSON.
-5. **Versão 2** — builds EAS, planos pagos, RevenueCat, lista de desejos,
+5. **Versão 2** ✅ — builds EAS, planos pagos, RevenueCat, lista de desejos,
    exportação para Instagram.

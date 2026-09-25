@@ -342,6 +342,16 @@ function GoalTab({
           <GoalLine cumulative={cumulativeBooks(readings, year, today)} target={p.targetBooks} />
         </ChartCard>
       ) : null}
+      {p.targetBooks ? (
+        <Button
+          title="Compartilhar meta no Instagram"
+          variant="secondary"
+          icon="logo-instagram"
+          onPress={() =>
+            router.push({ pathname: '/compartilhar', params: { tipo: 'meta', ano: String(year) } })
+          }
+        />
+      ) : null}
     </>
   );
 }
