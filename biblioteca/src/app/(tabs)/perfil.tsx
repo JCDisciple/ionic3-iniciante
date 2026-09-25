@@ -179,9 +179,20 @@ export default function ProfileScreen() {
       </View>
 
       <View className="gap-2">
-        <Label className="px-1">Em breve</Label>
+        <Label className="px-1">Seus dados</Label>
         <Card flush>
-          <ListItem icon="cloud-upload-outline" title="Importar e exportar" badge="Em breve" />
+          <ListItem
+            icon="cloud-upload-outline"
+            title="Importar livros"
+            subtitle="Goodreads, Skoob ou planilha"
+            onPress={() => router.push('/importar')}
+          />
+          <ListItem
+            icon="download-outline"
+            title="Exportar dados"
+            subtitle="CSV ou backup completo em JSON"
+            onPress={() => router.push('/exportar')}
+          />
         </Card>
       </View>
 

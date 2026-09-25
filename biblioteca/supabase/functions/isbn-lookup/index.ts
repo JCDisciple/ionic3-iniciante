@@ -11,12 +11,10 @@
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-import { lookupIsbn, searchBooks, type BookData } from '../_shared/book-sources.ts';
+import { cachedLookup } from '../_server/cached-lookup.ts';
+import { searchBooks } from '../_shared/book-sources.ts';
 import { corsHeaders, json } from '../_shared/cors.ts';
 import { parseIsbn } from '../_shared/isbn.ts';
-
-const FOUND_TTL_DAYS = 90;
-const NOT_FOUND_TTL_DAYS = 7;
 
 const admin = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -25,32 +23,11 @@ const admin = createClient(
 );
 const googleApiKey = Deno.env.get('GOOGLE_BOOKS_API_KEY') ?? null;
 
-function isFresh(updatedAt: string, found: boolean): boolean {
-  const ttl = (found ? FOUND_TTL_DAYS : NOT_FOUND_TTL_DAYS) * 24 * 60 * 60 * 1000;
-  return Date.now() - new Date(updatedAt).getTime() < ttl;
-}
-
 async function handleIsbn(input: string): Promise<Response> {
   const isbn = parseIsbn(input);
   if (!isbn) return json({ error: 'invalid_isbn' }, 400);
-
-  const { data: cached } = await admin
-    .from('isbn_cache')
-    .select('found, data, updated_at')
-    .eq('isbn', isbn.isbn13)
-    .maybeSingle();
-
-  if (cached && isFresh(cached.updated_at, cached.found)) {
-    return json({ found: cached.found, book: cached.data as BookData | null, cached: true });
-  }
-
-  const book = await lookupIsbn(isbn.isbn13, { fetch, googleApiKey });
-
-  await admin
-    .from('isbn_cache')
-    .upsert({ isbn: isbn.isbn13, found: !!book, data: book }, { onConflict: 'isbn' });
-
-  return json({ found: !!book, book, cached: false });
+  const { book, cached } = await cachedLookup(admin, isbn.isbn13, googleApiKey);
+  return json({ found: !!book, book, cached });
 }
 
 async function handleSearch(query: string): Promise<Response> {

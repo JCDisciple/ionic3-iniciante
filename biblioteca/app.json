@@ -67,7 +67,8 @@
         {
           "contactsPermission": "Escolha na agenda para quem você emprestou o livro."
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true,

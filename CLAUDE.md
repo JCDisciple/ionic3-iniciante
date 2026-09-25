@@ -130,6 +130,25 @@ As filhas usam FKs compostas `(id, library_id)`, então nada aponta para outra c
   texto nunca usa cor de série. Um eixo só; filtros (meus/família, ano) numa
   linha acima de todos os gráficos.
 
+### Importação e exportação (Fase 4)
+
+- O arquivo é lido e mapeado **no app** (a prévia precisa das linhas):
+  `src/lib/import/csv.ts` (CSV com `,`/`;`/tab, UTF-8 ou Windows-1252),
+  `xlsx.ts` (leitor mínimo sobre `fflate`), `mapping.ts` (colunas → campos,
+  predefinição do Goodreads, sinônimos em pt-BR para Skoob/planilhas, conversão
+  de situação, nota, datas BR/ISO/série do Excel) e `plan.ts` (duplicados por
+  ISBN ou título + 1º autor, no acervo e no arquivo; ação por linha: exemplar,
+  só leitura ou ignorar).
+- A gravação roda **no banco**, em lotes de 100, pela RPC `import_rows` (usa
+  `add_to_library`; uma linha com erro não derruba o lote). O arquivo original
+  vai para o bucket privado `imports`; o registro fica em `imports`.
+- Depois, a Edge Function `import-enrich` completa capa, páginas etc. pelo ISBN
+  (só campos vazios; marca `books.enriched_at`), chamada em lotes pelo app.
+- Exportação (`src/lib/export.ts`): CSV com `;` e BOM, uma linha por leitura, em
+  colunas que o próprio importador reconhece; JSON com todas as tabelas.
+  Download no navegador (`save-file.web.ts`) ou folha de compartilhamento no
+  nativo (`save-file.ts`).
+
 ## Fases de entrega
 
 1. **Base** ✅ — Expo + Supabase, login (link mágico e Google), libraries e
@@ -138,8 +157,8 @@ As filhas usam FKs compostas `(id, library_id)`, então nada aponta para outra c
    (BrasilAPI → Google Books → Open Library, com cache), modo lote, cadastro
    manual, gêneros editáveis, Física/Online com filtros, empréstimos com lembretes.
 3. **Leituras e relatórios** ✅ — status, origens externas, progresso, metas, as
-   quatro abas de relatórios (react-native-gifted-charts).
-4. **Importação e exportação** — Goodreads, Skoob, planilha com mapeamento,
+   quatro abas de relatórios (gráficos próprios sobre react-native-svg).
+4. **Importação e exportação** ✅ — Goodreads, Skoob, planilha com mapeamento,
    exportação CSV/JSON.
 5. **Versão 2** — builds EAS, planos pagos, RevenueCat, lista de desejos,
    exportação para Instagram.

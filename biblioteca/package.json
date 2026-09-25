@@ -19,6 +19,8 @@
     "expo-contacts": "~57.0.6",
     "expo-crypto": "~57.0.3",
     "expo-device": "~57.0.2",
+    "expo-document-picker": "~57.0.2",
+    "expo-file-system": "~57.0.7",
     "expo-font": "~57.0.4",
     "expo-glass-effect": "~57.0.4",
     "expo-haptics": "~57.0.3",
@@ -26,11 +28,13 @@
     "expo-image-picker": "~57.0.20",
     "expo-linking": "~57.0.11",
     "expo-router": "~57.0.23",
+    "expo-sharing": "~57.0.22",
     "expo-splash-screen": "~57.0.9",
     "expo-status-bar": "~57.0.1",
     "expo-symbols": "~57.0.3",
     "expo-system-ui": "~57.0.4",
     "expo-web-browser": "~57.0.3",
+    "fflate": "^0.8.3",
     "nativewind": "^4.2.7",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -67,7 +71,7 @@
     "db:push": "supabase db push",
     "db:types": "supabase gen types typescript --linked > src/types/database.ts",
     "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --import ./scripts/test-aliases.mjs --test \"supabase/functions/_shared/*.test.ts\" \"src/**/*.test.ts\"",
-    "functions:deploy": "supabase functions deploy isbn-lookup && supabase functions deploy loan-reminders"
+    "functions:deploy": "supabase functions deploy isbn-lookup && supabase functions deploy loan-reminders && supabase functions deploy import-enrich"
   },
   "private": true
 }

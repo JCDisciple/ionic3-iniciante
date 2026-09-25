@@ -80,9 +80,13 @@ function RootNavigator() {
         <Stack.Screen name="generos" options={{ headerShown: true }} />
         <Stack.Screen name="leitura/[id]" options={{ headerShown: true }} />
         <Stack.Screen name="metas" options={{ headerShown: true }} />
+        <Stack.Screen name="importar" options={{ headerShown: true }} />
+        <Stack.Screen name="exportar" options={{ headerShown: true }} />
         <Stack.Screen name="resumo" options={{ headerShown: true, title: 'Meu ano em leituras' }} />
         <Stack.Screen name="leitura/[id]" options={{ headerShown: true }} />
         <Stack.Screen name="metas" options={{ headerShown: true }} />
+        <Stack.Screen name="importar" options={{ headerShown: true }} />
+        <Stack.Screen name="exportar" options={{ headerShown: true }} />
         <Stack.Screen name="resumo" options={{ headerShown: true, title: 'Meu ano em leituras' }} />
       </Stack.Protected>
 

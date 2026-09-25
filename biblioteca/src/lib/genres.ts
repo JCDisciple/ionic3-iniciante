@@ -40,7 +40,7 @@ export function splitCategories(raw: string[]): string[] {
 /** [padrão sobre o texto normalizado, nome do gênero padrão | null = ignorar]. */
 const RULES: [RegExp, string | null][] = [
   [/criticism|critica literaria|literary collections|antologia/, null],
-  [/science fiction|ficcao cientifica|sci-fi|distop/, 'Ficção científica'],
+  [/science fiction|ficcao cientifica|sci-fi|sci fi|distop|dystop/, 'Ficção científica'],
   [/fantas/, 'Fantasia'],
   [/horror|terror/, 'Terror'],
   [/myster|thriller|suspense|misterio/, 'Suspense e mistério'],

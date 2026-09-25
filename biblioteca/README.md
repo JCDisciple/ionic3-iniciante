@@ -44,6 +44,7 @@ Sem o `.env.local` o app abre uma tela explicando o que falta.
 | --- | --- |
 | `isbn-lookup` | Busca de ISBN em cascata (BrasilAPI → Google Books → Open Library) com cache em `isbn_cache`, e busca por título/autor |
 | `loan-reminders` | Lembretes de devolução por Web Push, uma vez por dia |
+| `import-enrich` | Depois de importar, completa capa e páginas dos livros pelo ISBN |
 
 1. Gere as chaves VAPID (uma vez): `npx web-push generate-vapid-keys`.
 2. Cadastre os segredos:
@@ -55,7 +56,7 @@ Sem o `.env.local` o app abre uma tela explicando o que falta.
    ```
    A chave do Google Books vem do Google Cloud (APIs → Books API); sem ela a cota
    diária é praticamente zero. Guarde o `CRON_SECRET` para o passo 5.
-3. Publique: `npm run functions:deploy`.
+3. Publique: `npm run functions:deploy` (publica as três funções).
 4. Coloque a **chave pública** VAPID em `EXPO_PUBLIC_VAPID_PUBLIC_KEY` (`.env.local` e Vercel).
 5. Agende os lembretes (SQL Editor; exige as extensões `pg_cron` e `pg_net`). 12h UTC = 9h em Brasília:
    ```sql
