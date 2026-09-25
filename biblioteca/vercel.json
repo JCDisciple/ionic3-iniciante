@@ -3,18 +3,46 @@
   "buildCommand": "npx expo export --platform web",
   "outputDirectory": "dist",
   "cleanUrls": true,
-  "rewrites": [{ "source": "/convite/:token", "destination": "/convite/[token]" }],
+  "rewrites": [
+    {
+      "source": "/convite/:token",
+      "destination": "/convite/[token]"
+    },
+    {
+      "source": "/livro/:id/editar",
+      "destination": "/livro/[id]/editar"
+    },
+    {
+      "source": "/livro/:id",
+      "destination": "/livro/[id]"
+    },
+    {
+      "source": "/emprestar/:copyId",
+      "destination": "/emprestar/[copyId]"
+    }
+  ],
   "headers": [
     {
       "source": "/sw.js",
       "headers": [
-        { "key": "Cache-Control", "value": "no-cache" },
-        { "key": "Service-Worker-Allowed", "value": "/" }
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        },
+        {
+          "key": "Service-Worker-Allowed",
+          "value": "/"
+        }
       ]
     },
     {
       "source": "/_expo/static/(.*)",
-      "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
     }
   ]
 }

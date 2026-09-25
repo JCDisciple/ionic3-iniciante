@@ -57,7 +57,9 @@ export default function LoginScreen() {
             <View className="h-20 w-20 items-center justify-center rounded-3xl bg-accent">
               <Icon name="library" size={40} color="onAccent" />
             </View>
-            <Heading className="text-center text-4xl">Biblioteca</Heading>
+            <Heading size="xl" className="text-center">
+              Biblioteca
+            </Heading>
             <Muted className="max-w-xs text-center text-base">
               Seu acervo e suas leituras, da estante ao Kindle, num só lugar.
             </Muted>

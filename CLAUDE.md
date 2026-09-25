@@ -37,8 +37,9 @@ Leia `biblioteca/AGENTS.md` antes de mexer em APIs do Expo: elas mudam a cada SD
 - Consultas sempre filtradas pela library atual (`useCurrentLibrary()`); chaves
   do React Query começam com `['library', libraryId, …]`.
 - Instale pacotes com `npx expo install` (versões compatíveis com o SDK).
-- Antes de concluir: `npm run check` (typecheck + lint + prettier) e
-  `npm run build:web`.
+- Antes de concluir: `npm run check` (typecheck + lint + prettier + testes) e
+  `npm run build:web`. Testes unitários ficam ao lado do código (`*.test.ts`,
+  `node:test`) e rodam no Node sem build; mantenha a lógica testável em `src/lib`.
 
 ## Modelo de dados
 
@@ -65,8 +66,13 @@ são da library; leituras e metas são de cada membro. Todas as tabelas têm `id
 | `reading_progress` | library_id, reading_id, date, page, percent, minutes |
 | `goals` | library_id, member_id, year, target_books, target_pages |
 | `imports` | library_id, source (goodreads/skoob/sheet), file_url, status, rows_total, rows_imported |
+| `genre_aliases` | library_id, alias (categoria normalizada), genre_id |
+| `isbn_cache` | isbn, found, data (só a Edge Function acessa) |
+| `push_subscriptions` | user_id, endpoint, p256dh, auth |
 
-Diferenças em relação ao PRD, para RLS e integridade: `library_invites` é nova;
+Diferenças em relação ao PRD, para RLS e integridade: `library_invites`,
+`genre_aliases`, `isbn_cache` e `push_subscriptions` são novas; `loans` também
+tem `created_by` (quem recebe o lembrete) e `last_reminded_on`;
 `book_genres`, `loans`, `reading_progress` e `goals` também guardam `library_id`.
 As filhas usam FKs compostas `(id, library_id)`, então nada aponta para outra casa.
 
@@ -84,12 +90,31 @@ As filhas usam FKs compostas `(id, library_id)`, então nada aponta para outra c
   `accept_invite(token, display_name)` (uso único, expira em 14 dias; convite
   com e-mail só vale para aquele e-mail). `get_invite(token)` mostra a prévia.
 - Storage: bucket público `covers`, caminho `<library_id>/<arquivo>`.
+- Cadastro sempre pela RPC `add_to_library(library, book, genre_ids, copy, reading)`
+  (atômica; reaproveita o livro se o ISBN já existe). Outras RPCs: `set_book_genres`,
+  `merge_genres` (dono), `save_push_subscription`.
+
+### Acervo (Fase 2)
+
+- ISBN: `supabase/functions/_shared/isbn.ts` (validação ISBN-10/13, conversão) é
+  usado pelo app via alias `@shared/*` e pela Edge Function. Código em `_shared`
+  tem de ser puro (sem APIs do Deno) e importar com extensão `.ts`.
+- Busca: Edge Function `isbn-lookup` consulta as três fontes em paralelo e combina
+  na ordem BrasilAPI → Google Books → Open Library (a primeira que trouxer um
+  campo vence; as outras completam capa/gênero). Cache de 90 dias (7 se não achou).
+- Gêneros das APIs: `src/lib/genres.ts` mapeia categorias → gêneros da casa
+  (apelidos aprendidos → nome igual → regras por palavra). O que não casar vira
+  sugestão; ao associar, grava um `genre_aliases`.
+- Scanner: `components/barcode-camera.tsx` (expo-camera) e `.web.tsx`
+  (@zxing/browser). Modo lote guarda a fila em `lib/batch-store.ts`.
+- Empréstimos: lembrete por Web Push (`loan-reminders` + `public/sw.js`) no dia
+  da devolução e a cada 7 dias de atraso; cobrança por link `wa.me`.
 
 ## Fases de entrega
 
 1. **Base** ✅ — Expo + Supabase, login (link mágico e Google), libraries e
    convites de família, tabelas com RLS, PWA instalável, navegação e tema.
-2. **Acervo** — scanner (EAN-13), busca de ISBN em cascata numa Edge Function
+2. **Acervo** ✅ — scanner (EAN-13), busca de ISBN em cascata numa Edge Function
    (BrasilAPI → Google Books → Open Library, com cache), modo lote, cadastro
    manual, gêneros editáveis, Física/Online com filtros, empréstimos com lembretes.
 3. **Leituras e relatórios** — status, origens externas, progresso, metas, as

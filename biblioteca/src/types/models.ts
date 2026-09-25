@@ -71,6 +71,12 @@ export type Genre = Timestamps & {
   parent_id: string | null;
 };
 
+export type GenreAlias = Timestamps & {
+  library_id: string;
+  alias: string;
+  genre_id: string;
+};
+
 export type Copy = Timestamps & {
   library_id: string;
   book_id: string;
@@ -92,6 +98,8 @@ export type Loan = Timestamps & {
   lent_at: string;
   due_at: string | null;
   returned_at: string | null;
+  created_by: string | null;
+  last_reminded_on: string | null;
 };
 
 export type Reading = Timestamps & {
@@ -127,3 +135,6 @@ export type Goal = Timestamps & {
 
 /** Linha de library_members com a library embutida (select=*,library:libraries(*)). */
 export type Membership = LibraryMember & { library: Library };
+
+/** Metadados normalizados vindos da Edge Function isbn-lookup. */
+export type { BookData } from '@shared/book-sources.ts';

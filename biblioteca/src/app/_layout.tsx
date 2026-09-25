@@ -67,6 +67,17 @@ function RootNavigator() {
           options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
         />
         <Stack.Screen name="familia" options={{ headerShown: true, title: 'Família' }} />
+        <Stack.Screen name="lote" options={{ headerShown: true }} />
+        <Stack.Screen name="livro/novo" options={{ headerShown: true }} />
+        <Stack.Screen name="livro/buscar" options={{ headerShown: true }} />
+        <Stack.Screen name="livro/[id]/index" options={{ headerShown: true }} />
+        <Stack.Screen name="livro/[id]/editar" options={{ headerShown: true }} />
+        <Stack.Screen
+          name="emprestar/[copyId]"
+          options={{ headerShown: true, presentation: 'modal' }}
+        />
+        <Stack.Screen name="emprestados" options={{ headerShown: true }} />
+        <Stack.Screen name="generos" options={{ headerShown: true }} />
       </Stack.Protected>
 
       {/* Acessíveis em qualquer estado: retorno do login e links de convite. */}

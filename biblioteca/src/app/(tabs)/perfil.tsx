@@ -9,6 +9,7 @@ import { ListItem } from '@/components/ui/list-item';
 import { Screen } from '@/components/ui/screen';
 import { TextField } from '@/components/ui/text-field';
 import { Heading, Label, Muted } from '@/components/ui/typography';
+import { usePush } from '@/hooks/use-push';
 import { signOut } from '@/lib/auth';
 import { queryKeys } from '@/lib/queries';
 import { supabase } from '@/lib/supabase';
@@ -20,6 +21,7 @@ export default function ProfileScreen() {
   const { memberships, selectLibrary, refresh, isOwner } = useLibrary();
   const current = useCurrentLibrary();
   const queryClient = useQueryClient();
+  const push = usePush();
 
   const [editingName, setEditingName] = useState(false);
   const [name, setName] = useState(current.display_name);
@@ -114,10 +116,40 @@ export default function ProfileScreen() {
       </View>
 
       <View className="gap-2">
+        <Label className="px-1">Acervo</Label>
+        <Card flush>
+          <ListItem
+            icon="pricetags-outline"
+            title="Gêneros"
+            subtitle={isOwner ? 'Criar, renomear e mesclar' : 'Ver a lista da casa'}
+            onPress={() => router.push('/generos')}
+          />
+          <ListItem
+            icon="hand-right-outline"
+            title="Emprestados"
+            onPress={() => router.push('/emprestados')}
+          />
+          {push.state !== 'unsupported' && push.state !== 'loading' ? (
+            <ListItem
+              icon={push.state === 'enabled' ? 'notifications' : 'notifications-outline'}
+              title="Lembretes de devolução"
+              subtitle={
+                push.state === 'enabled'
+                  ? 'Ativados neste aparelho — toque para desativar'
+                  : push.state === 'denied'
+                    ? 'Bloqueados nas permissões do navegador'
+                    : 'Toque para ativar neste aparelho'
+              }
+              onPress={push.state === 'denied' || push.busy ? undefined : push.toggle}
+            />
+          ) : null}
+        </Card>
+      </View>
+
+      <View className="gap-2">
         <Label className="px-1">Em breve</Label>
         <Card flush>
           <ListItem icon="flag-outline" title="Metas de leitura" badge="Em breve" />
-          <ListItem icon="pricetags-outline" title="Gêneros" badge="Em breve" />
           <ListItem icon="cloud-upload-outline" title="Importar e exportar" badge="Em breve" />
         </Card>
       </View>

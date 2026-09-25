@@ -43,6 +43,30 @@
             "image": "./assets/images/splash-icon.png"
           }
         }
+      ],
+      "@react-native-community/datetimepicker",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "A câmera lê o código de barras dos seus livros.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": true
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Escolha uma foto para usar como capa do livro.",
+          "cameraPermission": "Fotografe a capa do livro.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Escolha na agenda para quem você emprestou o livro."
+        }
       ]
     ],
     "experiments": {

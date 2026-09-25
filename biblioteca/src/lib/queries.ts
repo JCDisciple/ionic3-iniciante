@@ -1,21 +1,52 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback } from 'react';
 
 import { supabase } from '@/lib/supabase';
 import { useCurrentLibrary } from '@/providers/library-provider';
-import type { Book, Copy, LibraryInvite, LibraryMember, Reading } from '@/types/models';
+import type {
+  Book,
+  Copy,
+  Genre,
+  GenreAlias,
+  LibraryInvite,
+  LibraryMember,
+  Loan,
+  Reading,
+  ReadingStatus,
+} from '@/types/models';
 
-/** Chaves de cache sempre começam pela library, para isolar trocas de casa. */
+/**
+ * Chaves de cache sempre começam por ['library', libraryId], para isolar trocas
+ * de casa e permitir invalidar tudo de uma biblioteca de uma vez.
+ */
 export const queryKeys = {
+  library: (libraryId: string) => ['library', libraryId] as const,
   members: (libraryId: string) => ['library', libraryId, 'members'] as const,
   invites: (libraryId: string) => ['library', libraryId, 'invites'] as const,
   shelf: (libraryId: string) => ['library', libraryId, 'shelf'] as const,
   recentBooks: (libraryId: string) => ['library', libraryId, 'recent-books'] as const,
-  myReading: (memberId: string) => ['member', memberId, 'reading'] as const,
+  book: (libraryId: string, bookId: string) => ['library', libraryId, 'book', bookId] as const,
+  genres: (libraryId: string) => ['library', libraryId, 'genres'] as const,
+  genreAliases: (libraryId: string) => ['library', libraryId, 'genre-aliases'] as const,
+  genreCounts: (libraryId: string) => ['library', libraryId, 'genre-counts'] as const,
+  openLoans: (libraryId: string) => ['library', libraryId, 'open-loans'] as const,
+  myReadings: (libraryId: string, memberId: string) =>
+    ['library', libraryId, 'member', memberId, 'readings'] as const,
 };
 
 function unwrap<T>({ data, error }: { data: unknown; error: { message: string } | null }): T {
   if (error) throw new Error(error.message);
   return data as T;
+}
+
+/** Invalida todas as consultas da biblioteca atual (use após qualquer escrita). */
+export function useInvalidateLibrary() {
+  const queryClient = useQueryClient();
+  const { library_id } = useCurrentLibrary();
+  return useCallback(
+    () => queryClient.invalidateQueries({ queryKey: queryKeys.library(library_id) }),
+    [queryClient, library_id],
+  );
 }
 
 export function useMembers() {
@@ -51,9 +82,12 @@ export function useOpenInvites(enabled: boolean) {
   });
 }
 
-export type ShelfCopy = Copy & { book: Book };
+export type ShelfCopy = Copy & {
+  book: Book & { book_genres: { genre_id: string }[] };
+  loans: Pick<Loan, 'id' | 'borrower_name' | 'due_at' | 'returned_at'>[];
+};
 
-/** Exemplares ativos da casa, com o livro embutido. */
+/** Exemplares ativos da casa, com o livro, os gêneros e os empréstimos. */
 export function useShelf() {
   const { library_id } = useCurrentLibrary();
   return useQuery({
@@ -62,7 +96,9 @@ export function useShelf() {
       unwrap<ShelfCopy[]>(
         await supabase
           .from('copies')
-          .select('*, book:books(*)')
+          .select(
+            '*, book:books(*, book_genres(genre_id)), loans(id, borrower_name, due_at, returned_at)',
+          )
           .eq('library_id', library_id)
           .eq('status', 'active')
           .order('created_at', { ascending: false }),
@@ -88,18 +124,121 @@ export function useRecentBooks(limit = 10) {
 
 export type ReadingWithBook = Reading & { book: Book };
 
-export function useMyCurrentReadings() {
-  const { id: memberId } = useCurrentLibrary();
+/** Minhas leituras (todas), da mais recente para a mais antiga. */
+export function useMyReadings() {
+  const { library_id, id: memberId } = useCurrentLibrary();
   return useQuery({
-    queryKey: queryKeys.myReading(memberId),
+    queryKey: queryKeys.myReadings(library_id, memberId),
     queryFn: async () =>
       unwrap<ReadingWithBook[]>(
         await supabase
           .from('readings')
           .select('*, book:books(*)')
           .eq('member_id', memberId)
-          .eq('status', 'reading')
           .order('updated_at', { ascending: false }),
+      ),
+  });
+}
+
+export function useMyCurrentReadings() {
+  const query = useMyReadings();
+  return { ...query, data: query.data?.filter((r) => r.status === 'reading') };
+}
+
+/** Status da minha leitura mais recente de cada livro (para o filtro da biblioteca). */
+export function useMyReadingStatusByBook() {
+  const query = useMyReadings();
+  const map = new Map<string, ReadingStatus>();
+  for (const reading of query.data ?? []) {
+    if (!map.has(reading.book_id)) map.set(reading.book_id, reading.status);
+  }
+  return map;
+}
+
+export type BookDetail = Book & {
+  book_genres: { genre_id: string }[];
+  copies: (Copy & { loans: Loan[] })[];
+  readings: (Reading & { member: Pick<LibraryMember, 'id' | 'display_name'> | null })[];
+};
+
+export function useBook(bookId: string | undefined) {
+  const { library_id } = useCurrentLibrary();
+  return useQuery({
+    queryKey: queryKeys.book(library_id, bookId ?? ''),
+    enabled: !!bookId,
+    queryFn: async () =>
+      unwrap<BookDetail | null>(
+        await supabase
+          .from('books')
+          .select(
+            '*, book_genres(genre_id), copies(*, loans(*)), readings(*, member:library_members(id, display_name))',
+          )
+          .eq('library_id', library_id)
+          .eq('id', bookId!)
+          .maybeSingle(),
+      ),
+  });
+}
+
+export function useGenres() {
+  const { library_id } = useCurrentLibrary();
+  return useQuery({
+    queryKey: queryKeys.genres(library_id),
+    staleTime: 5 * 60_000,
+    queryFn: async () =>
+      unwrap<Genre[]>(
+        await supabase.from('genres').select('*').eq('library_id', library_id).order('name'),
+      ),
+  });
+}
+
+export function useGenreAliases() {
+  const { library_id } = useCurrentLibrary();
+  return useQuery({
+    queryKey: queryKeys.genreAliases(library_id),
+    staleTime: 5 * 60_000,
+    queryFn: async () =>
+      unwrap<GenreAlias[]>(
+        await supabase.from('genre_aliases').select('*').eq('library_id', library_id),
+      ),
+  });
+}
+
+/** Quantos livros há em cada gênero. */
+export function useGenreCounts() {
+  const { library_id } = useCurrentLibrary();
+  return useQuery({
+    queryKey: queryKeys.genreCounts(library_id),
+    queryFn: async () => {
+      const rows = unwrap<{ genre_id: string }[]>(
+        await supabase.from('book_genres').select('genre_id').eq('library_id', library_id),
+      );
+      const counts = new Map<string, number>();
+      for (const row of rows) counts.set(row.genre_id, (counts.get(row.genre_id) ?? 0) + 1);
+      return counts;
+    },
+  });
+}
+
+export type OpenLoan = Loan & {
+  copy: Pick<Copy, 'id' | 'format' | 'location'> & {
+    book: Pick<Book, 'id' | 'title' | 'authors' | 'cover_url'>;
+  };
+};
+
+/** Empréstimos em aberto, do mais atrasado para o mais folgado (sem data por último). */
+export function useOpenLoans() {
+  const { library_id } = useCurrentLibrary();
+  return useQuery({
+    queryKey: queryKeys.openLoans(library_id),
+    queryFn: async () =>
+      unwrap<OpenLoan[]>(
+        await supabase
+          .from('loans')
+          .select('*, copy:copies(id, format, location, book:books(id, title, authors, cover_url))')
+          .eq('library_id', library_id)
+          .is('returned_at', null)
+          .order('due_at', { ascending: true, nullsFirst: false }),
       ),
   });
 }

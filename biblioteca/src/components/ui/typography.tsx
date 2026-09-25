@@ -15,11 +15,19 @@ export const serif = {
 };
 
 /** Títulos em serifa ("clima de livro"). */
-export function Heading({ className = '', style, ...props }: Props) {
+const HEADING_SIZES = { md: 'text-2xl', lg: 'text-3xl', xl: 'text-4xl' } as const;
+
+/** Tamanho via prop: classes de tamanho conflitantes no className não se sobrepõem. */
+export function Heading({
+  className = '',
+  style,
+  size = 'lg',
+  ...props
+}: Props & { size?: keyof typeof HEADING_SIZES }) {
   return (
     <Text
       accessibilityRole="header"
-      className={`text-3xl font-semibold text-ink ${className}`}
+      className={`${HEADING_SIZES[size]} font-semibold text-ink ${className}`}
       style={[serif, style]}
       {...props}
     />
